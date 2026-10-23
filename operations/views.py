@@ -7,7 +7,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.views import LoginView
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q, F, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -303,6 +303,37 @@ def event_api(request):
         return JsonResponse({'error': str(exc)}, status=400)
 
 @allowed(*MANAGEMENT)
+def add_inventory(request):
+    new_product = request.GET.get('mode', 'new') != 'existing'
+    data = request.POST if request.method == 'POST' else None
+    form = InventoryEntryForm(data, new_product=new_product)
+    product_form = ProductForm(data, prefix='product') if new_product else None
+    if request.method == 'POST':
+        valid = form.is_valid()
+        if product_form is not None:
+            valid = product_form.is_valid() and valid
+        if valid:
+            values = form.cleaned_data
+            if not new_product:
+                existing = Inventory.objects.filter(product=values['product'], warehouse=values['warehouse']).first()
+                if existing:
+                    messages.info(request, 'This product is already stocked at this warehouse. Edit its current balance below. The quantities from the add form have not been applied.')
+                    return redirect('inventory_detail', pk=existing.pk)
+            try:
+                with transaction.atomic():
+                    product = product_form.save() if new_product else values['product']
+                    item = Inventory.objects.create(product=product, warehouse=values['warehouse'], quantity=values['quantity'], reserved=values['reserved'])
+                    StockMovement.objects.create(inventory=item, delta=item.quantity, balance=item.quantity, reason='Opening stock', actor=request.user)
+                    AuditLog.objects.create(actor=request.user, action='Inventory created', target=str(item), details={'new_product': new_product, 'quantity': item.quantity, 'reserved': item.reserved})
+                refresh_alerts()
+                messages.success(request, 'Inventory saved. You can edit its stock balance below.')
+                return redirect('inventory_detail', pk=item.pk)
+            except IntegrityError:
+                form.add_error(None, 'This product or inventory entry was just created by another user. Choose an existing product or open its inventory entry to edit it.')
+    return page(request, 'inventory_new.html', title='Add inventory', section='inventory', form=form,
+                product_form=product_form, new_product=new_product)
+
+@allowed(*MANAGEMENT)
 def catalog_form(request, kind, pk=None):
     types = {'product': (Product, ProductForm, 'inventory'), 'supplier': (Supplier, SupplierForm, 'suppliers'),
              'warehouse': (Warehouse, WarehouseForm, 'inventory'), 'inventory': (Inventory, InventoryForm, 'inventory')}
@@ -310,6 +341,8 @@ def catalog_form(request, kind, pk=None):
         return not_found(request, None)
     if kind == 'inventory' and pk:
         return redirect('inventory_detail', pk=pk)
+    if kind == 'inventory':
+        return add_inventory(request)
     model, form_type, destination = types[kind]
     instance = get_object_or_404(model, pk=pk) if pk else None
     form = form_type(request.POST or None, instance=instance)

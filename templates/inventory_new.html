@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'inventory' %}">← Inventory</a>
+<div class="page-heading"><div><div class="eyebrow">MANAGE YOUR STOCK</div><h1>Add inventory.</h1><p>Create a product and its opening stock, or stock an existing product at another warehouse.</p></div></div>
+<section class="panel padded form-panel">
+  <nav class="form-actions" aria-label="Product type">
+    <a class="button {% if new_product %}primary{% else %}secondary{% endif %}" href="?mode=new" {% if new_product %}aria-current="page"{% endif %}>New product</a>
+    <a class="button {% if not new_product %}primary{% else %}secondary{% endif %}" href="?mode=existing" {% if not new_product %}aria-current="page"{% endif %}>Existing product</a>
+  </nav>
+  <form method="post">
+    {% csrf_token %}
+    {% if new_product %}
+      <h2>Product details</h2>
+      <p class="muted">Enter your own product name and unique SKU. These details are shared across warehouses.</p>
+      {% include 'partials/fields.html' with form=product_form %}
+      <h2>Opening stock</h2>
+    {% else %}
+      <h2>Stock an existing product</h2>
+      <p class="muted">If this product is already at the selected warehouse, we’ll open its current stock for you to edit.</p>
+    {% endif %}
+    {% include 'partials/fields.html' %}
+    <p class="muted">On-hand units are the total physical balance. Reserved units are already committed and are included in that total.</p>
+    <div class="form-actions"><button class="button primary">Save inventory</button><a class="button secondary" href="{% url 'inventory' %}">Cancel</a></div>
+  </form>
+  <div class="secondary-actions"><a href="{% url 'catalog_new' 'supplier' %}" target="_blank" rel="noopener">Add supplier ↗</a><a href="{% url 'catalog_new' 'warehouse' %}" target="_blank" rel="noopener">Add warehouse ↗</a></div>
+  <p class="muted">If you add a supplier or warehouse in a new tab, refresh this page before filling out the form.</p>
+</section>
+{% endblock %}

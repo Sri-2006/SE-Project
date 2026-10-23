@@ -1,5 +1,18 @@
 # Verification record
 
+## Inventory usability fix — 23 October 2026
+
+- Added a combined new-product/opening-stock form, an existing-product mode and visible Edit stock links.
+- Duplicate product/warehouse choices open the existing edit screen with a clear message and preserve current balances.
+- Manager and Administrator creation/editing are covered, including Django Admin entry points, invalid balances,
+  duplicate SKUs, denied Planner creation and atomic rollback without orphan products.
+- Updated PostgreSQL suite: **66 tests passed in 38.971 seconds**, exit code 0.
+- Live browser verification created temporary SKU QA-INV-20261023 at 75 on hand / 5 reserved, then edited it
+  to 90 on hand / 8 reserved. A direct query of PostgreSQL confirmed 82 available and ledger changes of +75 and +15.
+- The duplicate-selection browser check opened the same editable entry and preserved 90 / 8.
+- The temporary verification product and its dependent test records were removed after checking; existing stock was not altered.
+- Updated web container rebuilt and reported healthy. [Saved edit verification](screenshots/inventory-edit-verified.png).
+
 Verified locally on 23 October 2026. All records used were synthetic demonstration or isolated test data.
 The original lab PDFs were used as requirements input; their sample execution results were not adopted as evidence.
 

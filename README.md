@@ -34,6 +34,11 @@ The UI labels this as a demo workspace. No supplier messages or purchases are se
 
 1. Sign in as `manager` and review Overview.
 2. Open **Inventory**, filter by warehouse or stock health, and inspect a stock ledger.
+   Managers and Administrators can use **Add inventory → New product** to enter a name, SKU, category,
+   supplier, cost, warehouse and opening balance together. **Existing product** adds a warehouse position;
+   choosing an existing product/warehouse opens its edit screen without overwriting its balance.
+   Each row has **Edit stock** for changing on-hand/reserved units with a reason, plus **Edit product details**
+   on the detail screen. Django Admin's inventory Add/Change links open these same audited workflows.
 3. Open **Demand forecasting**, select a product/location and a 7, 30 or 90-day horizon, and generate a forecast.
 4. Open **Supplier intelligence** to inspect observed delivery and fulfilment metrics.
 5. Click **Run planning**, then review a pending recommendation and its evidence.

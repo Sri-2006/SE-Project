@@ -38,6 +38,23 @@ class StockForm(StyledFormMixin, forms.Form):
     reserved = forms.IntegerField(min_value=0, max_value=1000000, label='Reserved units')
     reason = forms.CharField(max_length=240, widget=forms.Textarea(attrs={'rows': 2}))
 
+class InventoryEntryForm(StyledFormMixin, forms.Form):
+    product = forms.ModelChoiceField(queryset=Product.objects.select_related('supplier'))
+    warehouse = forms.ModelChoiceField(queryset=Warehouse.objects.all())
+    quantity = forms.IntegerField(min_value=0, max_value=1000000, label='On-hand units', initial=0)
+    reserved = forms.IntegerField(min_value=0, max_value=1000000, label='Reserved units', initial=0)
+
+    def __init__(self, *args, new_product=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if new_product:
+            self.fields.pop('product')
+
+    def clean(self):
+        data = super().clean()
+        if data.get('reserved') is not None and data.get('quantity') is not None and data['reserved'] > data['quantity']:
+            self.add_error('reserved', 'Reserved units cannot exceed on-hand units.')
+        return data
+
 class DecisionForm(StyledFormMixin, forms.Form):
     action = forms.ChoiceField(choices=[('approved', 'Approve'), ('rejected', 'Reject'), ('overridden', 'Override quantity')])
     note = forms.CharField(required=False, max_length=1000, widget=forms.Textarea(attrs={'rows': 3}), label='Decision note')

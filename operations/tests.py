@@ -1,6 +1,7 @@
 import io
 import json
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import patch
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import PermissionDenied
@@ -337,6 +338,87 @@ class SupplyPilotTests(TestCase):
 
     def test_health_checks_database(self):
         self.assertEqual(self.client.get('/health/').json(), {'status': 'ok', 'application': 'supplypilot'})
+
+    def new_inventory_payload(self, sku='NEW-ITEM'):
+        return {'product-sku': sku, 'product-name': 'New inventory product', 'product-category': 'Packaging',
+                'product-unit_cost': '24.50', 'product-supplier': self.supplier.pk,
+                'warehouse': self.warehouse.pk, 'quantity': 75, 'reserved': 5}
+
+    def test_manager_and_admin_can_create_product_and_inventory_then_edit_stock(self):
+        admin_user = User.objects.create_superuser('admin-test', password='Testing-pass-123!')
+        for actor in (self.manager, admin_user):
+            with self.subTest(role=actor.username):
+                self.client.force_login(actor)
+                sku = f'NEW-{actor.pk}'
+                response = self.client.post('/catalog/inventory/new/', self.new_inventory_payload(sku))
+                item = Inventory.objects.get(product__sku=sku)
+                self.assertRedirects(response, f'/inventory/{item.pk}/')
+                self.assertEqual((item.quantity, item.reserved), (75, 5))
+                self.assertEqual(item.product.unit_cost, Decimal('24.50'))
+                self.assertEqual(StockMovement.objects.get(inventory=item).delta, 75)
+                response = self.client.post(f'/inventory/{item.pk}/', {'quantity': 90, 'reserved': 8, 'reason': 'Corrected physical count'})
+                self.assertRedirects(response, f'/inventory/{item.pk}/')
+                item.refresh_from_db()
+                self.assertEqual((item.quantity, item.reserved), (90, 8))
+                self.assertEqual(StockMovement.objects.filter(inventory=item).count(), 2)
+                self.assertContains(self.client.get(f'/inventory/{item.pk}/'), 'value="90"')
+
+    def test_add_inventory_default_form_accepts_new_product_details(self):
+        self.client.force_login(self.manager)
+        response = self.client.get('/catalog/inventory/new/')
+        self.assertContains(response, 'name="product-name"')
+        self.assertContains(response, 'Save inventory')
+        self.assertNotContains(response, 'name="product"')
+
+    def test_existing_product_can_be_stocked_in_new_warehouse(self):
+        self.client.force_login(self.manager)
+        warehouse = Warehouse.objects.create(name='Warehouse B', city='Delhi')
+        response = self.client.post('/catalog/inventory/new/?mode=existing', {'product': self.product.pk, 'warehouse': warehouse.pk, 'quantity': 20, 'reserved': 2})
+        item = Inventory.objects.get(product=self.product, warehouse=warehouse)
+        self.assertRedirects(response, f'/inventory/{item.pk}/')
+        self.assertEqual(Product.objects.count(), 1)
+
+    def test_duplicate_inventory_opens_existing_edit_without_overwriting_stock(self):
+        self.client.force_login(self.manager)
+        response = self.client.post('/catalog/inventory/new/?mode=existing', {'product': self.product.pk, 'warehouse': self.warehouse.pk, 'quantity': 999, 'reserved': 0}, follow=True)
+        self.assertContains(response, 'quantities from the add form have not been applied')
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.quantity, 10)
+        self.assertEqual(Inventory.objects.count(), 1)
+
+    def test_invalid_opening_stock_does_not_create_orphan_product(self):
+        self.client.force_login(self.manager)
+        payload = self.new_inventory_payload()
+        payload['reserved'] = 100
+        response = self.client.post('/catalog/inventory/new/', payload)
+        self.assertContains(response, 'Reserved units cannot exceed on-hand units')
+        self.assertFalse(Product.objects.filter(sku='NEW-ITEM').exists())
+
+    def test_duplicate_sku_does_not_create_inventory(self):
+        self.client.force_login(self.manager)
+        response = self.client.post('/catalog/inventory/new/', self.new_inventory_payload(self.product.sku))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['product_form'].errors.get('sku'))
+        self.assertEqual(Inventory.objects.count(), 1)
+
+    def test_inventory_creation_rolls_back_product_on_database_failure(self):
+        self.client.force_login(self.manager)
+        with patch('operations.views.StockMovement.objects.create', side_effect=IntegrityError('simulated failure')):
+            response = self.client.post('/catalog/inventory/new/', self.new_inventory_payload())
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Product.objects.filter(sku='NEW-ITEM').exists())
+        self.assertEqual(Inventory.objects.count(), 1)
+
+    def test_planner_cannot_create_catalog_inventory(self):
+        self.client.force_login(self.planner)
+        self.assertEqual(self.client.post('/catalog/inventory/new/', self.new_inventory_payload()).status_code, 403)
+        self.assertFalse(Product.objects.filter(sku='NEW-ITEM').exists())
+
+    def test_admin_inventory_links_use_audited_workflows(self):
+        actor = User.objects.create_superuser('admin-ui-test', password='Testing-pass-123!')
+        self.client.force_login(actor)
+        self.assertRedirects(self.client.get('/admin/operations/inventory/add/'), '/catalog/inventory/new/')
+        self.assertRedirects(self.client.get(f'/admin/operations/inventory/{self.item.pk}/change/'), f'/inventory/{self.item.pk}/')
 
     def test_new_open_order_blocks_stale_recommendation(self):
         PurchaseOrder.objects.create(reference='NEW-DRAFT', inventory=self.item, supplier=self.supplier, quantity=50, unit_cost=100, expected_date=timezone.localdate()+timedelta(days=5))
