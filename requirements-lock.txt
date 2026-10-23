@@ -1,0 +1,17 @@
+asgiref==3.12.1
+Django==5.2.18
+numpy==2.5.4
+packaging==26.3
+pandas==2.3.3
+patsy==1.0.3
+psycopg==3.3.6
+psycopg-binary==3.3.6
+python-dateutil==3.0.0
+pytz==2026.5
+scipy==1.18.1
+six==1.17.0
+sqlparse==0.6.0
+statsmodels==0.14.6
+tzdata==2026.5
+waitress==3.0.2
+whitenoise==6.12.0

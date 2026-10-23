@@ -1,0 +1,8 @@
+Django>=5.2,<5.3
+psycopg[binary]>=3.2,<4
+pandas>=2.2,<3
+numpy>=2,<3
+statsmodels>=0.14,<0.15
+whitenoise>=6.8,<7
+waitress>=3,<4
+

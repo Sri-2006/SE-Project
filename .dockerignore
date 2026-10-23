@@ -1,0 +1,12 @@
+.git
+.venv
+.env
+.local-secret
+.demo-credentials.txt
+db.sqlite3*
+tmp
+__pycache__
+*.pyc
+*.log
+staticfiles
+

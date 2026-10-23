@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.local-secret
+.demo-credentials.txt
+*.sqlite3
+*.sqlite3-*
+staticfiles/
+tmp/
+*.log
+.pytest_cache/
+

@@ -1,0 +1,17 @@
+{
+  "bootstrap.min.css": {
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css",
+    "sha256": "d85327d99c7a3ee1f9b5d0500d1370acea3ad2db39c163c2f51f232baedbdede",
+    "bytes": 232111
+  },
+  "htmx.min.js": {
+    "url": "https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js",
+    "sha256": "22283ef68cb7545914f0a88a1bdedc7256a703d1d580c1d255217d0a50d31313",
+    "bytes": 51250
+  },
+  "chart.umd.js": {
+    "url": "https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js",
+    "sha256": "48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a",
+    "bytes": 208522
+  }
+}
